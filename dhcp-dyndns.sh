@@ -48,8 +48,9 @@ test=$(date +%d'-'%m'-'%y' '%H':'%M':'%S)
 klist -c "${KRB5CCNAME}" -s
 if [ "$?" != "0" ]; then
     logger "${test} [dyndns] : Getting new ticket, old one has expired"
-    kinit -F -k -t /etc/dhcpduser.keytab "${SETPRINCIPAL}"
+    kinit -F -k -t /etc/dhcp/dhcpduser.keytab "${SETPRINCIPAL}"
     if [ "$?" != "0" ]; then
+        logger "kinit -F -k -t /etc/dhcp/dhcpduser.keytab \"${SETPRINCIPAL}\""
         logger "${test} [dyndns] : dhcpd kinit for dynamic DNS failed"
         exit 1;
     fi
@@ -110,7 +111,7 @@ export KRB5CCNAME="/tmp/dhcp-dyndns.cc"
 
 # Kerberos principal
 SETPRINCIPAL="dhcpduser@${REALM}"
-# Kerberos keytab : /etc/dhcpduser.keytab
+# Kerberos keytab : /etc/dhcp/dhcpduser.keytab
 # krbcc ticket cache : /tmp/dhcp-dyndns.cc
 TESTUSER="$($WBINFO -u | grep 'dhcpduser')"
 if [ -z "${TESTUSER}" ]; then
@@ -124,13 +125,13 @@ if [ -z "${TESTUSER}" ]; then
 fi
 
 # Check for Kerberos keytab
-if [ ! -f /etc/dhcpduser.keytab ]; then
-    echo "Required keytab /etc/dhcpduser.keytab not found, it needs to be created."
+if [ ! -f /etc/dhcp/dhcpduser.keytab ]; then
+    echo "Required keytab /etc/dhcp/dhcpduser.keytab not found, it needs to be created."
     echo "Use the following commands as root"
-    echo "samba-tool domain exportkeytab --principal=${SETPRINCIPAL} /etc/dhcpduser.keytab"
-    echo "chown XXXX:XXXX /etc/dhcpduser.keytab"
+    echo "samba-tool domain exportkeytab --principal=${SETPRINCIPAL} /etc/dhcp/dhcpduser.keytab"
+    echo "chown XXXX:XXXX /etc/dhcp/dhcpduser.keytab"
     echo "Replace 'XXXX:XXXX' with the user & group that dhcpd runs as on your distro"
-    echo "chmod 400 /etc/dhcpduser.keytab"
+    echo "chmod 400 /etc/dhcp/dhcpduser.keytab"
     exit 1
 fi
 

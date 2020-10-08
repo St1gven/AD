@@ -2,6 +2,7 @@
 sudo -s
 
 # setup environment
+SAMBA_VERSION=4.12.8
 hostname=$(hostname)
 realm=$(echo $hostname | awk -F'.' '{print $2"."$3}')   #st1gven.com
 REALM=$(echo $realm | awk '{ print toupper($0) }')     #ST1GVEN.COM
@@ -17,8 +18,6 @@ node_name=$(echo $hostname | awk -F'.' '{print $1}')    #dc1
 NODE_NAME=$(echo $node_name | awk '{ print toupper($0) }') #DC1
 echo "node_name:$node_name"
 echo "NODE_NAME:$NODE_NAME"
-
-password="ZA1BASs"
 
 # disable selinux
 sed 's/SELINUX=.*/SELINUX=disabled/g' -i /etc/sysconfig/selinux
@@ -42,19 +41,23 @@ dnf -y install docbook-style-xsl gcc gdb gnutls-devel gpgme-devel jansson-devel 
 
 # compile samba cuz there`s no AD for CentOS
 cd /tmp/
-wget https://ftp.samba.org/pub/samba/samba-4.12.6.tar.gz -o /dev/null >/dev/null
-tar -xzvf samba-4.12.6.tar.gz
-cd ./samba-4.12.6
+wget https://ftp.samba.org/pub/samba/samba-$SAMBA_VERSION.tar.gz -o /dev/null >/dev/null
+tar -xzvf samba-$SAMBA_VERSION.tar.gz
+cd ./samba-$SAMBA_VERSION
 ./configure #--enable-debug --enable-selftest --with-ads --with-systemd --with-winbind >/dev/null
 make
 make install
-#//todo(deps)  sudo dnf -y remove 
+cd -
+rm -rf /tmp/samba-$SAMBA_VERSION*
 
+ln -s /usr/local/samba/bin/wbinfo /usr/bin/wbinfo
+ln -s /usr/local/samba/bin/samba-tool /usr/bin/samba-tool
+ln -s /usr/local/samba/sbin/samba /usr/bin/samba
 
 rm -f /etc/krb5.conf
 /usr/local/samba/bin/samba-tool domain provision --use-rfc2307 --realm="$REALM" \
         --domain="$DOMAIN" --server-role="dc" --dns-backend="SAMBA_INTERNAL" \
-        --adminpass="$password"
+        --adminpass="$PASSWORD"
 
 # DNS
 sed 's/\[main\]/\[main\]\ndns=none/g' -i /etc/NetworkManager/NetworkManager.conf
@@ -64,6 +67,13 @@ nameserver 127.0.0.1
 domain $realm
 EOF
 
+cat <<EOF > /etc/hosts
+127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
+::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+$(ip addr show eth1 | grep "inet\b" | awk '{print $2}' | cut -d/ -f1) dc1.st1gven.com dc1
+EOF
+
+mkdir -p /share/dfs
 # setup smb domain, dns, netlogon and sysvol shares
 cat <<EOF > /usr/local/samba/etc/smb.conf
 [global]
@@ -79,6 +89,9 @@ cat <<EOF > /usr/local/samba/etc/smb.conf
     
     bind interfaces only = yes
     interfaces = lo eth1
+    
+    log file = /var/log/samba/samba.log
+    log level = 0 auth_audit:3
 [netlogon]
     path = /usr/local/samba/var/locks/sysvol/$realm/scripts
     read only = No
@@ -88,6 +101,9 @@ cat <<EOF > /usr/local/samba/etc/smb.conf
     path = /usr/local/samba/var/locks/sysvol
     read only = No
     write ok = Yes
+[dfs]
+    path = /share/dfs
+    msdfs root = yes
 EOF
 
 # configure Kerberos
@@ -125,13 +141,13 @@ EOF
 systemctl enable --now samba4
 
 # setup reverse DNS zone
-until /usr/local/samba/bin/samba-tool dns zonelist 127.0.0.1 --username=administrator --password=$password
+until /usr/local/samba/bin/samba-tool dns zonelist 127.0.0.1 --username=administrator --password=$PASSWORD
 do
   echo "Waiting DNS server to start..."
   sleep 5
 done
-/usr/local/samba/bin/samba-tool dns zonecreate 127.0.0.1 25.172.in-addr.arpa --username=administrator --password=$password
-/usr/local/samba/bin/samba-tool dns add 127.0.0.1 25.172.in-addr.arpa 1.0 PTR $hostname --username=administrator --password $password
+/usr/local/samba/bin/samba-tool dns zonecreate 127.0.0.1 25.172.in-addr.arpa --username=administrator --password=$PASSWORD
+/usr/local/samba/bin/samba-tool dns add 127.0.0.1 25.172.in-addr.arpa 1.0 PTR $hostname --username=administrator --password $PASSWORD
 # setup AD login
 
 ##link winbind
@@ -158,13 +174,13 @@ host -t SRV "_kerberos._udp.$realm."
 host -t A $hostname.
 
 ## Kerberos
-echo $password | kinit "administrator@$REALM"
+echo $PASSWORD | kinit "administrator@$REALM"
 /usr/local/samba/bin/samba-tool domain passwordsettings set --complexity=off --min-pwd-length=0 --max-pwd-age=0
 klist
 
 #test netlogon file server
 smbclient -L localhost -N
-echo $password | smbclient //localhost/netlogon -UAdministrator -c 'ls'
+echo $PASSWORD | smbclient //localhost/netlogon -UAdministrator -c 'ls'
 
 #test winbind
 /usr/local/samba/bin/wbinfo --ping-dc
@@ -174,11 +190,29 @@ echo $password | smbclient //localhost/netlogon -UAdministrator -c 'ls'
 /usr/local/samba/bin/samba-tool user create dhcpduser --description="Unprivileged user for TSIG-GSSAPI DNS updates via ISC DHCP server" --random-password
 /usr/local/samba/bin/samba-tool user setexpiry dhcpduser --noexpiry
 /usr/local/samba/bin/samba-tool group addmembers DnsAdmins dhcpduser
-/usr/local/samba/bin/samba-tool domain exportkeytab --principal=dhcpduser@ST1GVEN.COM /etc/dhcpduser.keytab
-chmod 400  /etc/dhcpduser.keytab
+/usr/local/samba/bin/samba-tool domain exportkeytab --principal=dhcpduser@ST1GVEN.COM /etc/dhcp/dhcpduser.keytab
+chown -R dhcpd:dhcpd /etc/dhcp
+chmod 400 /etc/dhcp/dhcpduser.keytab
 
 cp -f /vagrant/dhcp-dyndns.sh /usr/local/bin/dhcp-dyndns.sh
 chmod 755 /usr/local/bin/dhcp-dyndns.sh
 
 cp -f /vagrant/dhcp.conf /etc/dhcp/dhcpd.conf 
-sudo systemctl enable --now dhcpd
+
+cat <<EOF >> /etc/systemd/system/dhcpd_root.service
+[Unit]
+Description=DHCPv4 Server Daemon Root
+Wants=network-online.target
+After=network-online.target
+After=time-sync.target
+
+[Service]
+Type=notify
+EnvironmentFile=-/etc/sysconfig/dhcpd
+ExecStart=/usr/sbin/dhcpd -f -cf /etc/dhcp/dhcpd.conf -user root -group root --no-pid $DHCPDARGS
+StandardError=null
+
+[Install]
+WantedBy=multi-user.target
+EOF
+sudo systemctl enable --now dhcpd_root

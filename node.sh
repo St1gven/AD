@@ -21,7 +21,7 @@ password="ZA1BASs"
 # disable selinux
 sed 's/SELINUX=.*/SELINUX=disabled/g' -i /etc/sysconfig/selinux
 sed 's/SELINUX=.*/SELINUX=disabled/g' -i /etc/selinux/config
-setenforce 0
+setenforce 0 | :
 
 # disable firewall
 systemctl disable firewalld
@@ -42,7 +42,9 @@ cat <<EOF > /etc/samba/smb.conf
     workgroup = $DOMAIN
     security = ADS
     realm = $REALM
-
+    netbios name = $NODE_NAME
+    
+    auth methods = winbind
     winbind refresh tickets = Yes
     vfs objects = acl_xattr
     map acl inherit = Yes
@@ -78,3 +80,6 @@ sudo systemctl enable --now winbind
 authselect select winbind --force
 authselect enable-feature with-mkhomedir
 systemctl enable --now oddjobd
+
+mkdir -p /share/dfs
+mount -t cifs //dc1/dfs /share/dfs -o username=Administrator,pass=$password

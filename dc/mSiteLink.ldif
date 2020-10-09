@@ -1,0 +1,9 @@
+dn: CN=DEFAULTIPSITELINK,CN=IP,CN=Inter-Site Transports,CN=Sites,CN=Configuration,DC=st1gven,DC=com
+changetype: modify
+add: siteList
+siteList: <GUID=f7b80388-05e1-47ef-b29c-00d79d420a4f>;<RMD_FLAGS=0>;<RMD_VERSION=0>;CN=testSite,CN=Sites,CN=Configuration,DC=st1gven,DC=com
+-
+delete: replInterval
+-
+add: replInterval
+replInterval: 15

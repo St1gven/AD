@@ -1,31 +1,7 @@
 #!/bin/bash -e
 sudo -s
 
-# setup environment
-realm=$(echo $(hostname) | awk -F'.' '{print $2"."$3}')   #st1gven.com
-REALM=$(echo $realm | awk '{ print toupper($0) }')     #ST1GVEN.COM
-echo "realm: $realm"
-echo "REALM:$REALM"
-
-domain=$(echo $(hostname) | awk -F'.' '{print $2}')       #st1gven
-DOMAIN=$(echo $domain | awk '{ print toupper($0) }')    #ST1GVEN
-echo "domain:$domain"
-echo "DOMAIN:$DOMAIN"
-
-node_name=$(echo $(hostname) | awk -F'.' '{print $1}')    #dc1
-NODE_NAME=$(echo $node_name | awk '{ print toupper($0) }') #DC1
-echo "node_name:$node_name"
-echo "NODE_NAME:$NODE_NAME"
-
-password="ZA1BASs"
-# disable selinux
-sed 's/SELINUX=.*/SELINUX=disabled/g' -i /etc/sysconfig/selinux
-sed 's/SELINUX=.*/SELINUX=disabled/g' -i /etc/selinux/config
-setenforce 0 | :
-
-# disable firewall
-systemctl disable firewalld
-systemctl stop firewalld
+. /vagrant/env.sh
 
 dnf install -y samba samba-common samba-client samba-winbind samba-winbind-clients krb5-workstation oddjob oddjob-mkhomedir compat-openssl10
 
@@ -44,7 +20,6 @@ cat <<EOF > /etc/samba/smb.conf
     realm = $REALM
     netbios name = $NODE_NAME
     
-    auth methods = winbind
     winbind refresh tickets = Yes
     vfs objects = acl_xattr
     map acl inherit = Yes
@@ -71,7 +46,12 @@ cat <<EOF > /etc/krb5.conf
     dns_lookup_kdc = true
 EOF
 
-echo $password | net ads join -U administrator
+until echo $PASSWORD | net ads join -U administrator
+do
+  echo "Waiting DC to start..."
+  sleep 60
+done
+
 
 sudo systemctl enable --now smb
 sudo systemctl enable --now nmb
@@ -82,4 +62,4 @@ authselect enable-feature with-mkhomedir
 systemctl enable --now oddjobd
 
 mkdir -p /share/dfs
-mount -t cifs //dc1/dfs /share/dfs -o username=Administrator,pass=$password
+mount -t cifs //dc1/dfs /share/dfs -o username=Administrator,pass=$PASSWORD

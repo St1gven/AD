@@ -1,0 +1,14 @@
+[Unit]
+Description=DHCPv4 Server Daemon Root
+Wants=network-online.target
+After=network-online.target
+After=time-sync.target
+
+[Service]
+Type=notify
+EnvironmentFile=-/etc/sysconfig/dhcpd
+ExecStart=/usr/sbin/dhcpd -f -cf /etc/dhcp/dhcpd.conf -user root -group root --no-pid $DHCPDARGS
+StandardError=null
+
+[Install]
+WantedBy=multi-user.target

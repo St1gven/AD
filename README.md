@@ -1,0 +1,1 @@
+echo dc1 dc3 ws1 | tr " " "\n" | xargs -P5 -I {} vagrant up {}

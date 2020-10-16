@@ -5,13 +5,8 @@ sudo -s
 
 dnf install -y samba samba-common samba-client samba-winbind samba-winbind-clients krb5-workstation oddjob oddjob-mkhomedir compat-openssl10
 
-# DNS
+/usr/sbin/dhclient
 sed 's/\[main\]/\[main\]\ndns=none/g' -i /etc/NetworkManager/NetworkManager.conf
-cat <<EOF > /etc/resolv.conf
-search $realm
-nameserver 172.25.0.1
-domain $realm
-EOF
 
 cat <<EOF > /etc/samba/smb.conf
 [global]

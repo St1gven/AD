@@ -11,11 +11,18 @@ dnf -y install docbook-style-xsl gcc gdb gnutls-devel gpgme-devel jansson-devel 
 
 # compile samba cuz there`s no AD for CentOS
 cd /tmp/
-wget https://ftp.samba.org/pub/samba/samba-$SAMBA_VERSION.tar.gz -o /dev/null >/dev/null
-tar -xzvf samba-$SAMBA_VERSION.tar.gz
+if [[ ! -f /vagrant/compile/csamba-$SAMBA_VERSION.tar.gz ]]; then
+  wget https://ftp.samba.org/pub/samba/samba-$SAMBA_VERSION.tar.gz -o /dev/null >/dev/null
+  tar -xzf samba-$SAMBA_VERSION.tar.gz
+  cd ./samba-$SAMBA_VERSION
+  ./configure #--enable-debug --enable-selftest --with-ads --with-systemd --with-winbind >/dev/null
+  make
+  cd ../
+  tar -zcf /vagrant/compile/csamba-$SAMBA_VERSION.tar.gz samba-$SAMBA_VERSION
+else
+  tar -xzf /vagrant/compile/csamba-$SAMBA_VERSION.tar.gz
+fi
 cd ./samba-$SAMBA_VERSION
-./configure #--enable-debug --enable-selftest --with-ads --with-systemd --with-winbind >/dev/null
-make
 make install
 cd -
 rm -rf /tmp/samba-$SAMBA_VERSION*

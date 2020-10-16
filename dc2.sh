@@ -6,7 +6,7 @@ sudo -s
 sed 's/\[main\]/\[main\]\ndns=none/g' -i /etc/NetworkManager/NetworkManager.conf
 cat <<EOF > /etc/resolv.conf
 search $realm
-nameserver 172.25.0.1
+nameserver 172.25.0.2
 domain $realm
 EOF
 

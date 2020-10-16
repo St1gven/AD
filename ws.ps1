@@ -22,4 +22,6 @@ While ($Stoploop -eq $false)
 $net = New-Object -ComObject WScript.Network
 $net.MapNetworkDrive("z:", "\\dc1\dfs", $true, $Username, $env:PASSWORD)
 
-Restart-Computer
+Start-Sleep -Seconds 60
+
+Restart-Computer -Force

@@ -41,7 +41,7 @@ do
   sleep 5
 done
 samba-tool dns zonecreate 127.0.0.1 25.172.in-addr.arpa --username=administrator --password=$PASSWORD
-samba-tool dns add 127.0.0.1 25.172.in-addr.arpa 1.0 PTR $hostname --username=administrator --password $PASSWORD
+samba-tool dns add 127.0.0.1 25.172.in-addr.arpa 2.0 PTR $hostname --username=administrator --password $PASSWORD
 
 # setup AD login
 
@@ -92,6 +92,10 @@ add: replInterval
 replInterval: 15
 EOF
 /usr/local/samba/bin/ldbmodify -H "/usr/local/samba/private/sam.ldb.d/CN=CONFIGURATION,DC=$DOMAIN,DC=COM.ldb" mSiteLink.ldif
+
+samba-tool sites subnet create 172.25.0.0/24 Default-First-Site-Name
+samba-tool sites subnet create 172.25.1.0/24 testSite
+
 # test
 
 ## DNS

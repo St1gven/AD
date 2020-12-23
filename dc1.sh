@@ -58,6 +58,7 @@ systemctl enable --now oddjobd
 
 
 #setup dhcp
+export SUBNET_NUM=0
 samba-tool user create dhcpduser --description="Unprivileged user for TSIG-GSSAPI DNS updates via ISC DHCP server" --random-password
 samba-tool user setexpiry dhcpduser --noexpiry
 samba-tool group addmembers DnsAdmins dhcpduser
@@ -66,7 +67,7 @@ chown -R dhcpd:dhcpd /etc/dhcp
 chmod 400 /etc/dhcp/dhcpduser.keytab
 cp -f /vagrant/dc/dhcp-dyndns.sh /usr/local/bin/dhcp-dyndns.sh
 chmod 755 /usr/local/bin/dhcp-dyndns.sh
-cp -f /vagrant/dc/dhcp.conf /etc/dhcp/dhcpd.conf 
+envsubst '$SUBNET_NUM' < /vagrant/dc/dhcp.conf > /etc/dhcp/dhcpd.conf
 cp -f /vagrant/dc/dhcpd_root.service /etc/systemd/system/dhcpd_root.service
 sudo systemctl enable --now dhcpd_root
 
@@ -115,3 +116,16 @@ echo $PASSWORD | smbclient //localhost/netlogon -UAdministrator -c 'ls'
 #test winbind
 /usr/local/samba/bin/wbinfo --ping-dc
 
+#create CA
+mkdir -p /etc/pki/CA/private
+cd /etc/pki/CA
+cp /vagrant/dc/openssl.cnf /etc/pki/CA/openssl.cnf 
+touch index.txt
+echo 1000 > crlnumber
+openssl req -config openssl.cnf -nodes -new -x509 -keyout private/cakey.pem -out cacert.pem -days 1825 -subj "/C=RU/ST=Russion Federation/L=Samara/O=St1gven/CN=st1gven CA"
+openssl ca -config openssl.cnf -gencrl -out crl.pem
+cp cacert.pem /share/dfs/st1gven_ca
+
+#GPO
+#gpo=$(samba-tool gpo restore "Test f GPO6" /vagrant/dc/GPO --entities=/vagrant/dc/entities.xml --username=administrator --password $PASSWORD | grep "created as" | awk '{print $NF}')
+#samba-tool gpo setlink "DC=$domain,DC=com" $gpo --user administrator --password $PASSWORD

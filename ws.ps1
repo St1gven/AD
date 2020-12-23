@@ -19,8 +19,9 @@ do {
 }
 While ($Stoploop -eq $false)
 
-$net = New-Object -ComObject WScript.Network
-$net.MapNetworkDrive("z:", "\\dc1\dfs", $true, $Username, $env:PASSWORD)
+#$net = New-Object -ComObject WScript.Network
+#$net.MapNetworkDrive("z:", "\\dc1\dfs", $true, $Username, $env:PASSWORD)
+New-PSDrive -Name "Z" -Root "\\dc1\dfs" -Persist -PSProvider "FileSystem" -Credential $SecureCreds
 
 Start-Sleep -Seconds 60
 

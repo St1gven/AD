@@ -1,6 +1,6 @@
 # install required packages
 dnf -y install epel-release
-dnf config-manager --set-enabled PowerTools
+dnf config-manager --set-enabled powertools
 dnf -y install docbook-style-xsl gcc gdb gnutls-devel gpgme-devel jansson-devel \
       keyutils-libs-devel krb5-workstation libacl-devel libaio-devel \
       libarchive-devel libattr-devel libblkid-devel libtasn1 libtasn1-tools libtirpc-devel \
